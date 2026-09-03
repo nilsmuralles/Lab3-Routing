@@ -1,0 +1,18 @@
+{
+  "node_id": "E",
+  "listen": {"host": "0.0.0.0", "port": 5005},
+  "mode": "lsr",
+  "neighbors": [
+    {"node_id": "D", "host": "127.0.0.1", "port": 5004, "cost": 4},
+    {"node_id": "F", "host": "127.0.0.1", "port": 5006, "cost": 1}
+  ],
+  "params": {
+    "initial_ttl": 8,
+    "hello_interval_sec": 5,
+    "hello_timeout_sec": 2,
+    "hello_max_failures": 3,
+    "dedup_cache_ttl_sec": 60,
+    "log_level": "INFO"
+  },
+  "topology_file": "config/topology.json"
+}
