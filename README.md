@@ -60,6 +60,30 @@ forwarder.healthcheck = healthcheck
 y `Forwarder.handle()` debe usar `self.healthcheck.handle_hello(...)` /
 `self.healthcheck.handle_echo(...)` cuando `pkt["type"]` sea `hello`/`echo`.
 
+## LSR
+
+En modo `lsr`, cada nodo mantiene una LSDB indexada por `origin`. Un LSP
+contiene `origin`, un `seq` monotónico y el mapa de vecinos activos. Los LSP
+nuevos se aceptan solo si su secuencia es mayor que la conocida, se vuelven a
+inundar con TTL reducido y disparan una recomputación. La LSDB se convierte en
+un grafo no dirigido; ante anuncios contradictorios se conserva el menor
+costo válido anunciado. `dijkstra.compute()` calcula y almacena el primer salto
+para cada destino. Los cambios de vecinos originan un LSP nuevo.
+
+Para `lsr`, `topology_file` es la fuente de adyacencia y costos. Los archivos
+de nodo aportan host/puerto para vecinos ya conocidos; los enlaces nuevos usan
+los puertos estándar A-H. Así, cambiar `config/topology.json` basta para
+cambiar la topología de la ejecución LSR.
+
+El harness espera la convergencia, envía un paquete `message` desde A hacia G
+y considera exitosa la prueba cuando G registra la entrega. El log incluye
+`hops=[...]` para mostrar la ruta efectiva. Puede ajustarse el tiempo con
+`--convergence` o `LSR_CONVERGENCE_SEC`.
+
+## Reporte
+
+La memoria técnica integrada está en [docs/reporte-final.md](docs/reporte-final.md).
+
 ## Topología de placeholder
 
 `config/topology.json` trae una topología de prueba (8 nodos, pesos

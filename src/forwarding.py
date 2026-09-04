@@ -141,7 +141,14 @@ class Forwarder:
 
     def _deliver_local(self, pkt: dict) -> None:
         logger.info(
-            "%s: mensaje entregado from=%s payload=%r",
-            self.node_id, pkt.get("from"), pkt.get("payload"),
+            "%s: mensaje entregado from=%s hops=%s payload=%r",
+            self.node_id, pkt.get("from"), _hops(pkt), pkt.get("payload"),
         )
         self.delivered.append(pkt)
+
+
+def _hops(pkt: dict) -> list:
+    for header in pkt.get("headers") or []:
+        if isinstance(header, dict) and isinstance(header.get("hops"), list):
+            return header["hops"]
+    return []

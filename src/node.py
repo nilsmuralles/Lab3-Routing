@@ -18,13 +18,19 @@ from .transport import Transport
 logger = logging.getLogger(__name__)
 
 
-def _build_router(mode: str, node_id: str, neighbors: NeighborTable, cfg: config_module.NodeConfig):
+def _build_router(
+    mode: str,
+    node_id: str,
+    neighbors: NeighborTable,
+    cfg: config_module.NodeConfig,
+    transport: Transport,
+):
     if mode == "flooding":
         return FloodingRouter(node_id, neighbors)
     if mode == "dijkstra":
         return DijkstraRouter(node_id, neighbors, cfg.topology_file)
     if mode == "lsr":
-        return LSRRouter(node_id, neighbors)
+        return LSRRouter(node_id, neighbors, transport, cfg.params.get("initial_ttl", 8))
     raise ValueError(f"unknown mode: {mode!r}")
 
 
@@ -40,7 +46,7 @@ async def run(config_path: str) -> None:
 
     neighbors = NeighborTable(cfg.neighbors)
     dedup = DedupCache(cfg.params["dedup_cache_ttl_sec"])
-    router = _build_router(cfg.mode, cfg.node_id, neighbors, cfg)
+    router = _build_router(cfg.mode, cfg.node_id, neighbors, cfg, transport)
     forwarder = Forwarder(cfg.node_id, transport, router, neighbors, dedup, cfg.params)
     # `proto` on the wire must be the node's active mode (dijkstra/flooding/lsr),
     # per the reference spec section 4.4 -- not a made-up protocol name.
