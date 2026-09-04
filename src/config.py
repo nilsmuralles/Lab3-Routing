@@ -30,17 +30,22 @@ def load(path: str) -> NodeConfig:
             topology = None
         if isinstance(topology, dict) and raw["node_id"] in topology:
             configured = {item["node_id"]: item for item in neighbors}
-            neighbors = [
-                {
-                    "node_id": neighbor_id,
-                    "host": configured.get(neighbor_id, {}).get("host", "127.0.0.1"),
-                    "port": configured.get(
-                        neighbor_id, {}
-                    ).get("port", 5000 + ord(neighbor_id) - ord("A") + 1),
-                    "cost": cost,
-                }
-                for neighbor_id, cost in topology[raw["node_id"]].items()
-            ]
+            derived = []
+            for neighbor_id, cost in topology[raw["node_id"]].items():
+                known = configured.get(neighbor_id)
+                if known is not None:
+                    derived.append({**known, "cost": cost})
+                    continue
+                # node_id is now an address ("host:port"); if it isn't
+                # already configured as a neighbor we can't guess a port,
+                # so fall back to parsing the address itself.
+                host, _, port = neighbor_id.rpartition(":")
+                if not host or not port.isdigit():
+                    continue
+                derived.append({
+                    "node_id": neighbor_id, "host": host, "port": int(port), "cost": cost,
+                })
+            neighbors = derived
     return NodeConfig(
         node_id=raw["node_id"],
         host=listen["host"],

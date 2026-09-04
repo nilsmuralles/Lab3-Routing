@@ -1,6 +1,8 @@
 # Flood distribution + pure-flooding router.
 from __future__ import annotations
 
+from . import envelope
+
 
 async def flood(transport, neighbors, pkt: dict, exclude_id: str | None) -> None:
     ttl = pkt.get("ttl")
@@ -13,6 +15,7 @@ async def flood(transport, neighbors, pkt: dict, exclude_id: str | None) -> None
     out = dict(pkt)
     out["ttl"] = new_ttl
     out["from"] = transport.node_id
+    out["headers"] = envelope.header_set(list(pkt.get("headers") or []), "via", transport.node_id)
 
     for neighbor_id in neighbors.active():
         if neighbor_id == exclude_id:
@@ -27,7 +30,7 @@ class FloodingRouter:
         self.neighbors = neighbors
 
     def next_hop(self, dest: str) -> str | None:
-        
+
         return None
 
     async def on_info(self, pkt: dict, from_id: str) -> None:

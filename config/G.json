@@ -1,14 +1,32 @@
 {
-  "node_id": "G",
-  "listen": {"host": "0.0.0.0", "port": 5007},
+  "node_id": "127.0.0.1:5007",
+  "listen": {
+    "host": "0.0.0.0",
+    "port": 5007
+  },
   "mode": "lsr",
   "neighbors": [
-    {"node_id": "F", "host": "127.0.0.1", "port": 5000, "cost": 6},
-    {"node_id": "H", "host": "127.0.0.1", "port": 5008, "cost": 2},
-    {"node_id": "B", "host": "127.0.0.1", "port": 5002, "cost": 8}
+    {
+      "node_id": "127.0.0.1:5000",
+      "host": "127.0.0.1",
+      "port": 5000,
+      "cost": 6
+    },
+    {
+      "node_id": "127.0.0.1:5008",
+      "host": "127.0.0.1",
+      "port": 5008,
+      "cost": 2
+    },
+    {
+      "node_id": "127.0.0.1:5002",
+      "host": "127.0.0.1",
+      "port": 5002,
+      "cost": 8
+    }
   ],
   "params": {
-    "initial_ttl": 8,
+    "initial_ttl": 16,
     "hello_interval_sec": 5,
     "hello_timeout_sec": 2,
     "hello_max_failures": 3,

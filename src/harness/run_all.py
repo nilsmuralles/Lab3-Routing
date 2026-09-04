@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 import sys
 from pathlib import Path
@@ -13,7 +14,9 @@ from .. import envelope
 
 
 NODES = tuple("ABCDEFGH")
-DELIVERY_MARKER = ": mensaje entregado"
+DELIVERY_MARKER = "mensaje entregado"
+ORIGIN_LETTER = "A"
+DEST_LETTER = "G"
 
 
 async def _read_output(node_id: str, stream: asyncio.StreamReader, lines: list[str]) -> None:
@@ -52,6 +55,16 @@ async def _wait_with_process_checks(
         await asyncio.sleep(min(0.2, remaining))
 
 
+def _load_node_address(root: Path, letter: str) -> tuple[str, int, str]:
+    """Returns (listen_host_to_dial, listen_port, node_id_address) for the
+    given letter's config -- node_id is now an address ("host:port") per
+    PROTOCOLO.md, not the bare letter."""
+    cfg = json.loads((root / "config" / f"{letter}.json").read_text(encoding="utf-8"))
+    listen = cfg["listen"]
+    host = "127.0.0.1" if listen["host"] == "0.0.0.0" else listen["host"]
+    return host, listen["port"], cfg["node_id"]
+
+
 async def run_all(convergence_sec: float, delivery_timeout: float) -> int:
     root = Path(__file__).resolve().parents[2]
     processes: list[asyncio.subprocess.Process] = []
@@ -73,24 +86,31 @@ async def run_all(convergence_sec: float, delivery_timeout: float) -> int:
         if not await _wait_with_process_checks(processes, convergence_sec):
             print("Node process exited during convergence", flush=True)
             return 1
+
+        origin_host, origin_port, origin_addr = _load_node_address(root, ORIGIN_LETTER)
+        _, _, dest_addr = _load_node_address(root, DEST_LETTER)
+
         packet = envelope.make(
-            proto="lsr", type="message", frm="A", to="G", ttl=8,
+            proto="lsr", type="message", frm=origin_addr, to=dest_addr, ttl=16,
             payload="LSR harness test",
         )
-        print("Sending test message A -> G", flush=True)
-        await _connect_and_send("127.0.0.1", 5001, packet, delivery_timeout)
+        print(f"Sending test message {origin_addr} -> {dest_addr}", flush=True)
+        await _connect_and_send(origin_host, origin_port, packet, delivery_timeout)
 
         deadline = asyncio.get_running_loop().time() + delivery_timeout
-        while not any("G |" in line and DELIVERY_MARKER in line for line in output):
+        while not any(f"{DEST_LETTER} |" in line and DELIVERY_MARKER in line for line in output):
             if any(process.returncode is not None for process in processes):
                 print("Node process exited before message delivery", flush=True)
                 return 1
             if asyncio.get_running_loop().time() >= deadline:
-                print("Message delivery failed: G did not log a delivery", flush=True)
+                print(f"Message delivery failed: {DEST_LETTER} did not log a delivery", flush=True)
                 return 1
             await asyncio.sleep(0.1)
 
-        delivery = next(line for line in output if "G |" in line and DELIVERY_MARKER in line)
+        delivery = next(
+            line for line in output
+            if f"{DEST_LETTER} |" in line and DELIVERY_MARKER in line
+        )
         print(f"Message delivered successfully: {delivery}", flush=True)
         return 0
     finally:

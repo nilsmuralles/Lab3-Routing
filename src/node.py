@@ -31,7 +31,7 @@ def _build_router(
     if mode == "dijkstra":
         return DijkstraRouter(node_id, neighbors, cfg.topology_file)
     if mode == "lsr":
-        return LSRRouter(node_id, neighbors, transport, cfg.params.get("initial_ttl", 8))
+        return LSRRouter(node_id, neighbors, transport, cfg.params.get("initial_ttl", 16))
     raise ValueError(f"unknown mode: {mode!r}")
 
 
@@ -74,7 +74,7 @@ async def _stdin_message_loop(cfg: config_module.NodeConfig, forwarder: Forwarde
             continue
         pkt = envelope.make(
             cfg.mode, "message", cfg.node_id, dest,
-            cfg.params.get("initial_ttl", 8), text,
+            cfg.params.get("initial_ttl", 16), text,
         )
         await forwarder.handle(pkt, cfg.node_id)
 
