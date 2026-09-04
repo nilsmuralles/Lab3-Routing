@@ -1,6 +1,6 @@
 {
   "node_id": "F",
-  "listen": {"host": "0.0.0.0", "port": 5006},
+  "listen": {"host": "0.0.0.0", "port": 5000},
   "mode": "lsr",
   "neighbors": [
     {"node_id": "E", "host": "127.0.0.1", "port": 5005, "cost": 1},

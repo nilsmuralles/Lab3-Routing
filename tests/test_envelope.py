@@ -55,14 +55,23 @@ def test_validate_rejects_non_list_headers():
     pkt["headers"] = "not-a-list"
     assert validate(pkt) is False
 
-def test_validate_rejects_unknown_proto():
+def test_validate_accepts_proto_and_type_outside_our_own_set():
+    # Official spec lists proto/type as open ("dijkstra|flooding|lsr|dvr|...",
+    # "hello|echo|message|info|..."). We must not reject packets from other
+    # groups just because they use an algorithm/type we don't implement.
     pkt = make("lsr", "message", "A", "B", 8, "hola")
-    pkt["proto"] = "not-a-mode"
+    pkt["proto"] = "dvr"
+    assert validate(pkt) is True
+    pkt["type"] = "ack"
+    assert validate(pkt) is True
+
+def test_validate_rejects_empty_proto_or_type():
+    pkt = make("lsr", "message", "A", "B", 8, "hola")
+    pkt["proto"] = ""
     assert validate(pkt) is False
 
-def test_validate_rejects_unknown_type():
     pkt = make("lsr", "message", "A", "B", 8, "hola")
-    pkt["type"] = "not-a-type"
+    pkt["type"] = ""
     assert validate(pkt) is False
 
 def test_validate_accepts_broadcast_to_star():

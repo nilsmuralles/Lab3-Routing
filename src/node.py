@@ -6,6 +6,7 @@ import asyncio
 import logging
 
 from . import config as config_module
+from . import envelope
 from .dedup import DedupCache
 from .dijkstra import DijkstraRouter
 from .flooding import FloodingRouter
@@ -32,6 +33,50 @@ def _build_router(
     if mode == "lsr":
         return LSRRouter(node_id, neighbors, transport, cfg.params.get("initial_ttl", 8))
     raise ValueError(f"unknown mode: {mode!r}")
+
+
+def _print_table(cfg: config_module.NodeConfig, router) -> None:
+    table = getattr(router, "_table", None)
+    if table is None:
+        print(f"[{cfg.node_id}] este modo ({cfg.mode}) no mantiene una tabla de next-hop.")
+        return
+    if not table:
+        print(f"[{cfg.node_id}] tabla vacia (sin rutas conocidas todavia).")
+        return
+    print(f"[{cfg.node_id}] tabla de ruteo:")
+    print(f"  {'destino':<10} {'next_hop':<10} {'costo'}")
+    for dest, entry in sorted(table.items()):
+        print(f"  {dest:<10} {entry.get('next_hop', '-'):<10} {entry.get('cost', '-')}")
+
+
+async def _stdin_message_loop(cfg: config_module.NodeConfig, forwarder: Forwarder, router) -> None:
+    """Lets a human at this node originate a 'message' packet, per the spec
+    requirement that any node must be able to send AND receive a message.
+    Format: 'DESTINO: texto del mensaje'. Also accepts 'table' to print the
+    node's current routing table.
+    """
+    print(f"[{cfg.node_id}] listo. Formato: 'DESTINO: texto' para enviar, 'table' para ver rutas.")
+    while True:
+        try:
+            line = await asyncio.to_thread(input, "> ")
+        except EOFError:
+            return
+        line = line.strip()
+        if not line:
+            continue
+        if line.lower() == "table":
+            _print_table(cfg, router)
+            continue
+        dest, sep, text = line.partition(":")
+        dest, text = dest.strip(), text.strip()
+        if not sep or not dest or not text:
+            print("Formato invalido. Usa: DESTINO: texto del mensaje (o 'table')")
+            continue
+        pkt = envelope.make(
+            cfg.mode, "message", cfg.node_id, dest,
+            cfg.params.get("initial_ttl", 8), text,
+        )
+        await forwarder.handle(pkt, cfg.node_id)
 
 
 async def run(config_path: str) -> None:
@@ -68,6 +113,7 @@ async def run(config_path: str) -> None:
     tasks = [asyncio.create_task(healthcheck.run())]
     if hasattr(router, "run"):
         tasks.append(asyncio.create_task(router.run()))
+    tasks.append(asyncio.create_task(_stdin_message_loop(cfg, forwarder, router)))
 
     await asyncio.gather(*tasks)
 

@@ -6,8 +6,13 @@ from typing import Any
 
 VERSION = 1
 
-ALLOWED_PROTO = {"dijkstra", "flooding", "lsr"}
-ALLOWED_TYPE = {"hello", "echo", "message", "info"}
+# Non-exhaustive: the official spec lists these as examples
+# ("dijkstra|flooding|lsr|dvr|...", "hello|echo|message|info|...") and leaves
+# both fields open for interop with other groups' algorithms/packet types.
+# We only implement dijkstra/flooding/lsr and hello/echo/message/info
+# ourselves, but validate() must not reject packets using other values.
+KNOWN_PROTO = {"dijkstra", "flooding", "lsr"}
+KNOWN_TYPE = {"hello", "echo", "message", "info"}
 
 REQUIRED_FIELDS = ("id", "proto", "type", "from", "to", "ttl", "payload")
 
@@ -61,9 +66,9 @@ def validate(pkt: dict) -> bool:
         return False
     if not isinstance(pkt["id"], str) or not pkt["id"]:
         return False
-    if pkt["proto"] not in ALLOWED_PROTO:
+    if not isinstance(pkt["proto"], str) or not pkt["proto"]:
         return False
-    if pkt["type"] not in ALLOWED_TYPE:
+    if not isinstance(pkt["type"], str) or not pkt["type"]:
         return False
     if not isinstance(pkt["from"], str) or not isinstance(pkt["to"], str):
         return False

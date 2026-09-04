@@ -3,7 +3,7 @@
   "listen": {"host": "0.0.0.0", "port": 5007},
   "mode": "lsr",
   "neighbors": [
-    {"node_id": "F", "host": "127.0.0.1", "port": 5006, "cost": 6},
+    {"node_id": "F", "host": "127.0.0.1", "port": 5000, "cost": 6},
     {"node_id": "H", "host": "127.0.0.1", "port": 5008, "cost": 2},
     {"node_id": "B", "host": "127.0.0.1", "port": 5002, "cost": 8}
   ],

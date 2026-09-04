@@ -4,7 +4,7 @@
   "mode": "lsr",
   "neighbors": [
     {"node_id": "D", "host": "127.0.0.1", "port": 5004, "cost": 4},
-    {"node_id": "F", "host": "127.0.0.1", "port": 5006, "cost": 1}
+    {"node_id": "F", "host": "127.0.0.1", "port": 5000, "cost": 1}
   ],
   "params": {
     "initial_ttl": 8,
