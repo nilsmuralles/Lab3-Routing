@@ -69,6 +69,23 @@ class Transport:
     ) -> None:
         peer = writer.get_extra_info("peername")
         try:
+            await self._read_loop(reader, peer)
+        finally:
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except (ConnectionError, OSError):
+                pass
+
+    async def _read_loop(self, reader: asyncio.StreamReader, peer) -> None:
+        """Shared by both accepted (inbound) and dialed (outbound)
+        connections. Per PROTOCOLO.md: some implementations reply on the
+        same socket they were addressed on instead of dialing back to
+        `from` -- so we must not only write to our outbound connections,
+        we must also read from them, or those replies (e.g. an echo to our
+        own hello) are silently lost and the neighbor looks DOWN even
+        though it answered."""
+        try:
             while True:
                 line = await reader.readline()
                 if not line:
@@ -82,25 +99,21 @@ class Transport:
                     await self.on_packet(pkt, from_id)
         except (ConnectionError, OSError):
             pass
-        finally:
-            writer.close()
-            try:
-                await writer.wait_closed()
-            except (ConnectionError, OSError):
-                pass
 
     async def _maintain_connection(self, node_id: str) -> None:
         host, port = self.neighbors[node_id]
         delay = 1.0
         while True:
             try:
-                _, writer = await asyncio.open_connection(host, port)
+                reader, writer = await asyncio.open_connection(host, port)
                 self._writers[node_id] = writer
                 delay = 1.0
                 logger.info("%s: connected to %s (%s:%d)", self.node_id, node_id, host, port)
-                await writer.wait_closed()
+                await self._read_loop(reader, (host, port))
             except (ConnectionError, OSError):
                 pass
-            self._writers.pop(node_id, None)
+            writer_ref = self._writers.pop(node_id, None)
+            if writer_ref is not None:
+                writer_ref.close()
             await asyncio.sleep(delay)
             delay = min(delay * 2, 10.0)
