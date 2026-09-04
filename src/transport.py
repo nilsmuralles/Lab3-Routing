@@ -96,7 +96,20 @@ class Transport:
                     continue
                 from_id = pkt.get("from", "")
                 if self.on_packet is not None:
-                    await self.on_packet(pkt, from_id)
+                    try:
+                        await self.on_packet(pkt, from_id)
+                    except (ConnectionError, OSError):
+                        raise
+                    except Exception:
+                        # A packet from a different implementation can be
+                        # well-formed per envelope.validate() but still
+                        # trip an edge case in our own handling logic.
+                        # That must never tear down an otherwise-healthy
+                        # connection -- log it and keep reading.
+                        logger.exception(
+                            "%s: error procesando paquete de %s (type=%s), se descarta",
+                            self.node_id, peer, pkt.get("type"),
+                        )
         except (ConnectionError, OSError):
             pass
 

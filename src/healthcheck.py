@@ -40,6 +40,7 @@ class HealthCheck:
             pkt = envelope.make(
                 self.proto, "hello", self.node_id, nid, 1,
                 {"listen_port": self.transport.port},
+                headers=envelope.header_set([], "t0", t0),
             )
             self._pending[nid] = {"msg_id": envelope.msg_id(pkt), "t0": t0}
             await self.transport.send(nid, pkt)

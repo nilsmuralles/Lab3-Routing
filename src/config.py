@@ -31,10 +31,12 @@ def load(path: str) -> NodeConfig:
         if isinstance(topology, dict) and raw["node_id"] in topology:
             configured = {item["node_id"]: item for item in neighbors}
             derived = []
+            derived_ids: set[str] = set()
             for neighbor_id, cost in topology[raw["node_id"]].items():
                 known = configured.get(neighbor_id)
                 if known is not None:
                     derived.append({**known, "cost": cost})
+                    derived_ids.add(neighbor_id)
                     continue
                 # node_id is now an address ("host:port"); if it isn't
                 # already configured as a neighbor we can't guess a port,
@@ -45,7 +47,13 @@ def load(path: str) -> NodeConfig:
                 derived.append({
                     "node_id": neighbor_id, "host": host, "port": int(port), "cost": cost,
                 })
-            neighbors = derived
+                derived_ids.add(neighbor_id)
+            # Merge, don't replace: a manually configured neighbor outside
+            # our own topology.json (e.g. a cross-group adjacency added by
+            # hand for the joint test) must survive even though it isn't
+            # listed there -- topology.json only knows about our 8 nodes.
+            extra = [item for nid, item in configured.items() if nid not in derived_ids]
+            neighbors = derived + extra
     return NodeConfig(
         node_id=raw["node_id"],
         host=listen["host"],
