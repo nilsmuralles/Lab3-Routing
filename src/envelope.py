@@ -121,6 +121,12 @@ def parse(line: str) -> dict | None:
         return None
     pkt.setdefault("version", VERSION)
     pkt.setdefault("headers", [])
+    # PROTOCOLO.md: some peers still put the packet's logical id in a
+    # top-level `id` instead of the msg_id header -- fold it in so dedup and
+    # LSP identity work uniformly.
+    top_id = pkt.get("id")
+    if header_get(pkt["headers"], "msg_id") is None and isinstance(top_id, str) and top_id:
+        pkt["headers"] = header_set(pkt["headers"], "msg_id", top_id)
     return pkt
 
 

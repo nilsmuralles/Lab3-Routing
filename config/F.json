@@ -1,23 +1,18 @@
 {
-  "node_id": "127.0.0.1:5000",
+  "node_id": "F",
   "listen": {
     "host": "0.0.0.0",
     "port": 5000
   },
+  "advertise_host": "192.168.0.153",
+  "default_port": 5000,
   "mode": "lsr",
   "neighbors": [
-    {
-      "node_id": "127.0.0.1:5005",
-      "host": "127.0.0.1",
-      "port": 5005,
-      "cost": 1
-    },
-    {
-      "node_id": "127.0.0.1:5007",
-      "host": "127.0.0.1",
-      "port": 5007,
-      "cost": 6
-    }
+    {"node_id": "C", "host": "192.168.0.137", "port": 5000, "cost": 8},
+    {"node_id": "D", "host": "192.168.0.155", "port": 5000, "cost": 2},
+    {"node_id": "E", "host": "192.168.0.219", "port": 5000, "cost": 3},
+    {"node_id": "G", "host": "192.168.0.218", "port": 5000, "cost": 1},
+    {"node_id": "H", "host": "192.168.0.138", "port": 5000, "cost": 4}
   ],
   "params": {
     "initial_ttl": 16,
@@ -26,6 +21,5 @@
     "hello_max_failures": 3,
     "dedup_cache_ttl_sec": 60,
     "log_level": "INFO"
-  },
-  "topology_file": "config/topology.json"
+  }
 }

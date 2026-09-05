@@ -32,6 +32,22 @@ class NeighborTable:
     def active(self) -> list[str]:
         return [nid for nid, n in self._n.items() if n.is_up]
 
+    def snapshot(self) -> list[dict]:
+        """Per-neighbor state for the `neighbors` CLI command / debugging
+        (PROTOCOLO.md section 'Estado de vecinos')."""
+        return [
+            {
+                "node_id": n.node_id,
+                "host": n.host,
+                "port": n.port,
+                "cost": n.cost,
+                "is_up": n.is_up,
+                "consecutive_failures": n.consecutive_failures,
+                "last_rtt_sec": n.last_rtt_sec,
+            }
+            for n in self._n.values()
+        ]
+
     def is_up(self, node_id: str) -> bool:
         n = self._n.get(node_id)
         return bool(n and n.is_up)

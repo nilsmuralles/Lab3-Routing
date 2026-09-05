@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import functools
 import logging
 
 from . import config as config_module
@@ -14,6 +15,7 @@ from .forwarding import Forwarder
 from .healthcheck import HealthCheck
 from .lsr import LSRRouter
 from .neighbors import NeighborTable
+from .rxmonitor import RxMonitor
 from .transport import Transport
 
 logger = logging.getLogger(__name__)
@@ -36,26 +38,32 @@ def _build_router(
 
 
 def _print_table(cfg: config_module.NodeConfig, router) -> None:
+    p = functools.partial(print, flush=True)
     table = getattr(router, "_table", None)
     if table is None:
-        print(f"[{cfg.node_id}] este modo ({cfg.mode}) no mantiene una tabla de next-hop.")
+        p(f"[{cfg.node_id}] este modo ({cfg.mode}) no mantiene una tabla de next-hop.")
         return
     if not table:
-        print(f"[{cfg.node_id}] tabla vacia (sin rutas conocidas todavia).")
+        p(f"[{cfg.node_id}] tabla vacia (sin rutas conocidas todavia).")
         return
-    print(f"[{cfg.node_id}] tabla de ruteo:")
-    print(f"  {'destino':<10} {'next_hop':<10} {'costo'}")
+    p(f"[{cfg.node_id}] tabla de ruteo:")
+    p(f"  {'destino':<20} {'next_hop':<20} {'costo'}")
     for dest, entry in sorted(table.items()):
-        print(f"  {dest:<10} {entry.get('next_hop', '-'):<10} {entry.get('cost', '-')}")
+        p(f"  {dest:<20} {str(entry.get('next_hop', '-')):<20} {entry.get('cost', '-')}")
 
 
-async def _stdin_message_loop(cfg: config_module.NodeConfig, forwarder: Forwarder, router) -> None:
+async def _stdin_message_loop(
+    cfg: config_module.NodeConfig, forwarder: Forwarder, router, neighbors, monitor
+) -> None:
     """Lets a human at this node originate a 'message' packet, per the spec
     requirement that any node must be able to send AND receive a message.
-    Format: 'DESTINO: texto del mensaje'. Also accepts 'table' to print the
-    node's current routing table.
+    Format: 'DESTINO: texto del mensaje'. Also accepts 'table' (routing
+    table) and 'neighbors' (neighbor up/down state).
     """
-    print(f"[{cfg.node_id}] listo. Formato: 'DESTINO: texto' para enviar, 'table' para ver rutas.")
+    print(
+        f"[{cfg.node_id}] listo. Formato: 'DESTINO: texto' para enviar | "
+        "'table' rutas | 'neighbors' tabla de conexiones."
+    )
     while True:
         try:
             line = await asyncio.to_thread(input, "> ")
@@ -67,10 +75,19 @@ async def _stdin_message_loop(cfg: config_module.NodeConfig, forwarder: Forwarde
         if line.lower() == "table":
             _print_table(cfg, router)
             continue
-        dest, sep, text = line.partition(":")
+        if line.lower() in ("neighbors", "vecinos", "conns", "conexiones"):
+            monitor.print_table()
+            continue
+        # Destinations are "IP:puerto" addresses, so split on the first
+        # ": " (colon-space) and only fall back to a bare ":" separator.
+        if ": " in line:
+            dest, text = line.split(": ", 1)
+            sep = ":"
+        else:
+            dest, sep, text = line.partition(":")
         dest, text = dest.strip(), text.strip()
         if not sep or not dest or not text:
-            print("Formato invalido. Usa: DESTINO: texto del mensaje (o 'table')")
+            print("Formato invalido. Usa: DESTINO: texto del mensaje (o 'table' / 'neighbors')")
             continue
         pkt = envelope.make(
             cfg.mode, "message", cfg.node_id, dest,
@@ -97,6 +114,9 @@ async def run(config_path: str) -> None:
     # per the reference spec section 4.4 -- not a made-up protocol name.
     healthcheck = HealthCheck(transport, neighbors, cfg.params, cfg.mode)
 
+    monitor = RxMonitor(cfg.node_id, neighbors, cfg.params.get("default_port"))
+    transport.rx_observer = monitor.observe
+
     # Wiring convention: Forwarder's __init__ signature is frozen and does
     # not take a HealthCheck, so it is attached here for handle() to
     # delegate 'hello'/'echo' packets to.
@@ -113,7 +133,7 @@ async def run(config_path: str) -> None:
     tasks = [asyncio.create_task(healthcheck.run())]
     if hasattr(router, "run"):
         tasks.append(asyncio.create_task(router.run()))
-    tasks.append(asyncio.create_task(_stdin_message_loop(cfg, forwarder, router)))
+    tasks.append(asyncio.create_task(_stdin_message_loop(cfg, forwarder, router, neighbors, monitor)))
 
     await asyncio.gather(*tasks)
 
